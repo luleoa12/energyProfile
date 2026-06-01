@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaction Energy Profile</title>
+<style>
+:root {
+  --bg-base:     #0c0c10;
+  --bg-panel:    #111118;
+  --bg-inner:    #0e0e14;
+  --bg-elevated: #161620;
+  --border:      rgba(255,255,255,0.07);
+  --border-hover:rgba(255,255,255,0.14);
+  --border-mid:  rgba(255,255,255,0.10);
+  --text-primary:   #d0d0e0;
+  --text-secondary: #8080a0;
+  --text-muted:     #5a5a70;
+  --text-dim:       #404050;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+/* Top bar */
+.top-bar {
+  height: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+.back {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.80rem;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.back:hover { color: var(--text-primary); border-color: var(--border-hover); }
+.page-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex: 1;
+  color: var(--text-primary);
+}
+.tag {
+  font-size: 0.70rem;
+  padding: 2px 10px;
+  border-radius: 100px;
+  background: rgba(74,143,192,0.08);
+  color: #6890c0;
+  border: 1px solid rgba(74,143,192,0.22);
+  white-space: nowrap;
+}
+
+/* Body */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Left panel */
+.panel {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+}
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+.section-label {
+  font-size: 0.60rem;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--text-muted);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* Presets */
+.preset-grid { display: flex; flex-direction: column; gap: 3px; }
+.preset-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inner);
+  color: var(--text-secondary);
+  font-size: 0.70rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.preset-btn:hover { border-color: var(--border-hover); color: var(--text-primary); background: var(--bg-elevated); }
+.preset-btn.active { border-color: #4a8fc0 !important; color: #a8ccee !important; background: #0c1828 !important; }
+.preset-eq {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge {
+  font-size: 0.56rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+.badge-endo { background: rgba(192,110,40,0.15); color: #c07038; border: 1px solid rgba(192,110,40,0.28); }
+.badge-exo  { background: rgba(60,140,200,0.15);  color: #4a88bc; border: 1px solid rgba(60,140,200,0.28); }
+
+/* Sliders */
+.slider-row    { display: flex; flex-direction: column; gap: 4px; }
+.slider-header { display: flex; justify-content: space-between; align-items: center; }
+.slider-label  { font-size: 0.67rem; color: var(--text-secondary); }
+.slider-val    { font-size: 0.67rem; font-weight: 700; font-family: monospace; color: var(--text-primary); }
+.slider {
+  width: 100%;
+  height: 3px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, #4a8fc0 var(--pct, 50%), var(--border) var(--pct, 50%));
+  border-radius: 2px;
+  outline: none;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid #0e1624;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+  cursor: pointer;
+}
+.slider::-moz-range-thumb {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid #0e1624;
+  cursor: pointer;
+}
+
+/* Catalyst */
+.cat-btn {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inner);
+  color: var(--text-secondary);
+  font-size: 0.73rem;
+  font-family: inherit;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.12s;
+}
+.cat-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+.cat-btn.on { border-color: #3cb77a !important; color: #3cb77a !important; background: #0a1e12 !important; }
+.cat-note {
+  font-size: 0.67rem;
+  color: rgba(60,183,122,0.85);
+  background: rgba(60,183,122,0.06);
+  border: 1px solid rgba(60,183,122,0.18);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  text-align: center;
+  display: none;
+}
+.cat-note.visible { display: block; }
+
+/* Readout */
+.readout-block { display: flex; flex-direction: column; gap: 4px; }
+.thermo-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+}
+.thermo-card.endo { background: rgba(192,110,40,0.08); border: 1px solid rgba(192,110,40,0.22); }
+.thermo-card.exo  { background: rgba(60,140,200,0.08);  border: 1px solid rgba(60,140,200,0.22); }
+.thermo-icon { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+.thermo-card.endo .thermo-icon  { color: #c07038; }
+.thermo-card.exo  .thermo-icon  { color: #4a88bc; }
+.thermo-title { font-size: 0.74rem; font-weight: 700; }
+.thermo-card.endo .thermo-title { color: #c07038; }
+.thermo-card.exo  .thermo-title { color: #4a88bc; }
+.thermo-sub { font-size: 0.60rem; color: var(--text-muted); margin-top: 2px; }
+.read-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 8px;
+  background: var(--bg-inner);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.70rem;
+}
+.read-label { color: var(--text-muted); }
+.read-val   { font-weight: 700; font-family: monospace; }
+.hint {
+  font-size: 0.61rem;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 5px 6px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  line-height: 1.5;
+  margin-top: auto;
+}
+
+/* Canvas */
+.canvas-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: #0c0c10;
+  position: relative;
+  overflow: hidden;
+}
+canvas { display: block; width: 100%; height: 100%; }
+
+/* Right panel */
+.right-panel {
+  width: 256px;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.right-inner {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.right-inner::-webkit-scrollbar { width: 3px; }
+.right-inner::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+.type-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 10px 11px;
+}
+.type-card.endo { background: rgba(192,110,40,0.07); border-color: rgba(192,110,40,0.22); }
+.type-card.exo  { background: rgba(60,140,200,0.07);  border-color: rgba(60,140,200,0.22); }
+.type-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.type-label { font-size: 0.78rem; font-weight: 700; }
+.type-card.endo .type-label { color: #c07038; }
+.type-card.exo  .type-label { color: #4a88bc; }
+.type-dh { font-size: 0.68rem; font-family: monospace; font-weight: 700; }
+.type-sub { font-size: 0.66rem; color: var(--text-muted); line-height: 1.5; }
+
+.term-card {
+  background: var(--bg-inner);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.term-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+.term-icon  { font-size: 0.78rem; color: var(--text-muted); font-family: monospace; }
+.term-title { font-size: 0.67rem; font-weight: 600; color: var(--text-primary); }
+.term-body  { padding: 7px 10px; font-size: 0.65rem; color: var(--text-secondary); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <a href="/" class="back">← Back</a>
+  <h1 class="page-title">Reaction Energy Profile</h1>
+  <span class="tag">Unit 5 · Kinetics</span>
+</div>
+
+<!-- Body -->
+<div class="body">
+
+  <!-- Left panel -->
+  <div class="panel">
+    <div class="section-label">Preset Reactions</div>
+    <div class="preset-grid" id="preset-grid"></div>
+
+    <div class="section-label">Parameters</div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-label">Ea (forward)</span>
+        <span class="slider-val" id="ea-val"></span>
+      </div>
+      <input type="range" class="slider" id="ea-slider" min="10" max="350" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-label">ΔH (reaction)</span>
+        <span class="slider-val" id="dh-val"></span>
+      </div>
+      <input type="range" class="slider" id="dh-slider" min="-250" max="200" step="5">
+    </div>
+
+    <div class="slider-row">
+      <div class="slider-header">
+        <span class="slider-label">Temperature</span>
+        <span class="slider-val" id="temp-val"></span>
+      </div>
+      <input type="range" class="slider" id="temp-slider" min="200" max="900" step="10">
+    </div>
+
+    <button class="cat-btn" id="cat-btn">⚗ Add Catalyst</button>
+    <div class="cat-note" id="cat-note"></div>
+
+    <div class="section-label">Live Values</div>
+    <div class="readout-block">
+      <div class="thermo-card" id="thermo-card">
+        <span class="thermo-icon" id="thermo-icon"></span>
+        <div>
+          <div class="thermo-title" id="thermo-title"></div>
+          <div class="thermo-sub" id="thermo-sub"></div>
+        </div>
+      </div>
+      <div class="read-row">
+        <span class="read-label">Ea (fwd)</span>
+        <span class="read-val" id="read-ea-fwd"></span>
+      </div>
+      <div class="read-row">
+        <span class="read-label">Ea (rev)</span>
+        <span class="read-val" id="read-ea-rev"></span>
+      </div>
+      <div class="read-row">
+        <span class="read-label">ΔH</span>
+        <span class="read-val" id="read-dh"></span>
+      </div>
+    </div>
+
+    <div class="hint">Drag ‡ on the chart to adjust Ea</div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+    <div class="right-inner">
+      <div class="type-card" id="type-card">
+        <div class="type-top">
+          <span class="type-label" id="type-label"></span>
+          <span class="type-dh" id="type-dh"></span>
+        </div>
+        <div class="type-sub" id="type-sub"></div>
+      </div>
+
+      <div class="term-card">
+        <div class="term-head"><span class="term-icon">ΔH</span><span class="term-title">Enthalpy Change</span></div>
+        <div class="term-body">ΔH = H(products) − H(reactants). Negative means exothermic; positive means endothermic. Does not determine reaction speed.</div>
+      </div>
+
+      <div class="term-card">
+        <div class="term-head"><span class="term-icon">⚡</span><span class="term-title">Activation Energy</span></div>
+        <div class="term-body">Minimum energy molecules need to react. Ea(rev) = Ea(fwd) − ΔH = <span id="term-ea-rev"></span> kJ/mol. Higher T → more molecules exceed Ea → faster rate.</div>
+      </div>
+
+      <div class="term-card">
+        <div class="term-head"><span class="term-icon">‡</span><span class="term-title">Transition State</span></div>
+        <div class="term-body">Highest-energy point on the pathway. Bonds are partially broken and formed. Cannot be isolated — exists only momentarily.</div>
+      </div>
+
+      <div class="term-card">
+        <div class="term-head"><span class="term-icon">⚗</span><span class="term-title">Catalyst</span></div>
+        <div class="term-body" id="term-catalyst"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────────
+const X_LEFT  = 0.15
+const X_PEAK  = 0.50
+const X_RIGHT = 0.85
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let dH       = -92
+let Ea       = 150
+let tempK    = 500
+let catalyst = false
+let presetIdx = 0
+
+const PRESETS = [
+  { id: 'haber',      label: 'N₂ + 3H₂ → 2NH₃',        dH:  -92, Ea: 150 },
+  { id: 'contact',    label: '2SO₂ + O₂ → 2SO₃',        dH: -198, Ea: 220 },
+  { id: 'no2',        label: 'N₂O₄ → 2NO₂',             dH:  +57, Ea:  90 },
+  { id: 'neutralize', label: 'HCl + NaOH → NaCl + H₂O', dH:  -57, Ea:  15 },
+  { id: 'h2o2',       label: '2H₂O₂ → 2H₂O + O₂',       dH:  -98, Ea:  75 },
+]
+
+// ── Curve geometry ─────────────────────────────────────────────────────────────
+function getCurveGeometry(W, H, dH, Ea) {
+  const PAD   = { l: 74, r: 82, t: 54, b: 48 }
+  const plotW = W - PAD.l - PAD.r
+  const plotH = H - PAD.t - PAD.b
+  const Er    = 0
+  const Ep    = dH
+  const Epeak = Ea
+  const minE  = Math.min(Er, Ep) - 28
+  const maxE  = Epeak + 42
+  const eRange = maxE - minE
+  const toX = frac => PAD.l + frac * plotW
+  const toY = e    => PAD.t + plotH * (1 - (e - minE) / eRange)
+  return { PAD, plotW, plotH, Er, Ep, Epeak, eRange, minE, maxE, toX, toY }
+}
+
+function energyAtX(xFrac, Er, Ep, Epeak) {
+  if (xFrac <= X_LEFT) return Er
+  if (xFrac <= X_PEAK) {
+    const t = (xFrac - X_LEFT) / (X_PEAK - X_LEFT)
+    return Er + (Epeak - Er) * (3*t*t - 2*t*t*t)
+  }
+  if (xFrac <= X_RIGHT) {
+    const t = (xFrac - X_PEAK) / (X_RIGHT - X_PEAK)
+    return Epeak + (Ep - Epeak) * (3*t*t - 2*t*t*t)
+  }
+  return Ep
+}
+
+function drawDoubleArrowV(ctx, x, y1, y2, color) {
+  const headLen = 6
+  ctx.strokeStyle = color
+  ctx.fillStyle   = color
+  ctx.lineWidth   = 1.2
+  ctx.beginPath()
+  ctx.moveTo(x, y1)
+  ctx.lineTo(x, y2)
+  ctx.stroke()
+  const topY = Math.min(y1, y2)
+  const botY = Math.max(y1, y2)
+  ctx.beginPath()
+  ctx.moveTo(x, topY); ctx.lineTo(x-4, topY+headLen); ctx.lineTo(x+4, topY+headLen)
+  ctx.closePath(); ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(x, botY); ctx.lineTo(x-4, botY-headLen); ctx.lineTo(x+4, botY-headLen)
+  ctx.closePath(); ctx.fill()
+}
+
+function drawEnergyProfile(ctx, W, H, dH, Ea, catalyst, dots) {
+  const geo = getCurveGeometry(W, H, dH, Ea)
+  const { PAD, plotW, plotH, Er, Ep, Epeak, eRange, minE, toX, toY } = geo
+  const isEndo = dH > 0
+
+  ctx.fillStyle = '#0c0c10'
+  ctx.fillRect(0, 0, W, H)
+
+  ctx.fillStyle = 'rgba(255,255,255,0.012)'
+  ctx.beginPath()
+  if (ctx.roundRect) ctx.roundRect(PAD.l, PAD.t, plotW, plotH, 4)
+  else ctx.rect(PAD.l, PAD.t, plotW, plotH)
+  ctx.fill()
+
+  ctx.save()
+  ctx.setLineDash([5, 6])
+  ctx.lineWidth = 0.7
+  for (const [e, alpha] of [[Er, 0.30], [Ep, 0.28], [Epeak, 0.16]]) {
+    ctx.strokeStyle = `rgba(100,100,130,${alpha})`
+    ctx.beginPath()
+    ctx.moveTo(PAD.l, toY(e))
+    ctx.lineTo(W - PAD.r, toY(e))
+    ctx.stroke()
+  }
+  ctx.setLineDash([])
+  ctx.restore()
+
+  ctx.save()
+  ctx.font = '10px "SF Mono", ui-monospace, monospace'
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'middle'
+  for (const { e, text, color } of [
+    { e: Er,    text: '0',                                       color: '#585868' },
+    { e: Ep,    text: `${dH > 0 ? '+' : ''}${Math.round(dH)}`, color: isEndo ? '#b07040' : '#4a80b0' },
+    { e: Epeak, text: String(Math.round(Ea)),                    color: '#707090' },
+  ]) {
+    ctx.fillStyle = color
+    ctx.fillText(text, PAD.l - 8, toY(e))
+  }
+  ctx.translate(13, PAD.t + plotH / 2)
+  ctx.rotate(-Math.PI / 2)
+  ctx.font = '9px "SF Mono", ui-monospace, monospace'
+  ctx.fillStyle = '#303040'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('Energy (kJ/mol)', 0, 0)
+  ctx.restore()
+
+  ctx.font = '9px "SF Mono", ui-monospace, monospace'
+  ctx.fillStyle = '#303040'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'top'
+  ctx.fillText('Reaction Coordinate  →', PAD.l + plotW / 2, PAD.t + plotH + 30)
+
+  function traceCurve(peakE, steps = 320) {
+    for (let i = 0; i <= steps; i++) {
+      const xFrac = i / steps
+      const e = energyAtX(xFrac, Er, Ep, peakE)
+      if (i === 0) ctx.moveTo(toX(xFrac), toY(e))
+      else         ctx.lineTo(toX(xFrac), toY(e))
+    }
+  }
+
+  ctx.save()
+  const fillGrad = ctx.createLinearGradient(0, toY(Epeak), 0, toY(Math.min(Er, Ep)))
+  if (isEndo) {
+    fillGrad.addColorStop(0, 'rgba(192,120,58,0.10)')
+    fillGrad.addColorStop(1, 'rgba(192,120,58,0.02)')
+  } else {
+    fillGrad.addColorStop(0, 'rgba(74,143,192,0.10)')
+    fillGrad.addColorStop(1, 'rgba(74,143,192,0.02)')
+  }
+  ctx.beginPath()
+  traceCurve(Epeak)
+  ctx.lineTo(toX(1.0), toY(Math.min(Er, Ep)))
+  ctx.lineTo(toX(0.0), toY(Math.min(Er, Ep)))
+  ctx.closePath()
+  ctx.fillStyle = fillGrad
+  ctx.fill()
+  ctx.restore()
+
+  if (catalyst) {
+    const EaCat = Ea * 0.60
+    ctx.save()
+    ctx.beginPath()
+    traceCurve(EaCat)
+    ctx.strokeStyle = 'rgba(60,183,122,0.60)'
+    ctx.lineWidth = 1.8
+    ctx.setLineDash([7, 5])
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.restore()
+  }
+
+  const curveColor = isEndo ? '#c07a3a' : '#4a8fc0'
+  ctx.save()
+  ctx.shadowColor = isEndo ? 'rgba(192,120,58,0.45)' : 'rgba(74,143,210,0.45)'
+  ctx.shadowBlur = 14
+  ctx.beginPath()
+  traceCurve(Epeak)
+  ctx.strokeStyle = curveColor
+  ctx.lineWidth = 2.6
+  ctx.lineJoin = 'round'
+  ctx.stroke()
+  ctx.restore()
+
+  ctx.font = '11px system-ui, sans-serif'
+  ctx.textBaseline = 'bottom'
+  ctx.fillStyle = '#707090'
+  ctx.textAlign = 'left'
+  ctx.fillText('Reactants', toX(0.01), toY(Er) - 8)
+
+  const prodSide = Ep <= Er
+  ctx.textAlign = prodSide ? 'right' : 'left'
+  ctx.fillText('Products', toX(prodSide ? 0.99 : 0.87), toY(Ep) - 8)
+
+  const tsPx = toX(X_PEAK)
+  const tsPy = toY(Epeak)
+  ctx.fillStyle = '#a0a0c0'
+  ctx.font = '11px system-ui, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'bottom'
+  ctx.fillText('‡ Transition State', tsPx, tsPy - 10)
+
+  if (catalyst) {
+    const EaCat = Ea * 0.6
+    ctx.fillStyle = 'rgba(60,183,122,0.85)'
+    ctx.font = '10px system-ui, sans-serif'
+    ctx.fillText('‡ catalyzed', tsPx, toY(EaCat) - 8)
+  }
+
+  const xFwd  = toX(0.28)
+  const yEr   = toY(Er)
+  const yPeak = toY(Epeak)
+  drawDoubleArrowV(ctx, xFwd, yEr, yPeak, 'rgba(200,178,65,0.80)')
+  ctx.save()
+  ctx.font = '9px "SF Mono", ui-monospace, monospace'
+  ctx.fillStyle = 'rgba(200,178,65,0.85)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.translate(xFwd - 28, (yEr + yPeak) / 2)
+  ctx.rotate(-Math.PI / 2)
+  ctx.fillText(`Ea = ${Math.round(Ea)} kJ/mol`, 0, 0)
+  ctx.restore()
+
+  const EaRev = Ea - dH
+  const xRev  = toX(0.72)
+  const yEp   = toY(Ep)
+  drawDoubleArrowV(ctx, xRev, yPeak, yEp, 'rgba(175,128,210,0.80)')
+  ctx.save()
+  ctx.font = '9px "SF Mono", ui-monospace, monospace'
+  ctx.fillStyle = 'rgba(175,128,210,0.85)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.translate(xRev + 30, (yPeak + yEp) / 2)
+  ctx.rotate(Math.PI / 2)
+  ctx.fillText(`Ea(rev) = ${Math.round(EaRev)} kJ/mol`, 0, 0)
+  ctx.restore()
+
+  if (Math.abs(dH) > 4) {
+    const xBracket = W - PAD.r + 38
+    const dhColor  = isEndo ? '#b07040' : '#4a80b0'
+    ctx.strokeStyle = dhColor
+    ctx.fillStyle   = dhColor
+    ctx.lineWidth = 1.5
+    ctx.beginPath(); ctx.moveTo(xBracket, yEr); ctx.lineTo(xBracket, yEp); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(xBracket-5, yEr); ctx.lineTo(xBracket+5, yEr); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(xBracket-5, yEp); ctx.lineTo(xBracket+5, yEp); ctx.stroke()
+    ctx.save()
+    ctx.font = '9px "SF Mono", ui-monospace, monospace'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.translate(xBracket + 16, (yEr + yEp) / 2)
+    ctx.rotate(Math.PI / 2)
+    ctx.fillText(`ΔH = ${dH > 0 ? '+' : ''}${Math.round(dH)} kJ/mol`, 0, 0)
+    ctx.restore()
+  }
+
+  for (const dot of dots) {
+    const EaEff = dot.catalyzed ? Ea * 0.6 : Ea
+    const energy = energyAtX(dot.xFrac, Er, Ep, EaEff)
+    const dx = toX(dot.xFrac)
+    const dy = toY(energy)
+    const dotColor = dot.phase === 'reverse'
+      ? 'rgba(220,85,85,0.92)'
+      : dot.catalyzed
+        ? 'rgba(60,200,120,0.92)'
+        : 'rgba(200,220,255,0.90)'
+    const glowColor = dot.phase === 'reverse'
+      ? 'rgba(220,85,85,0.5)'
+      : dot.catalyzed
+        ? 'rgba(60,200,120,0.5)'
+        : 'rgba(160,190,255,0.5)'
+    ctx.save()
+    ctx.shadowColor = glowColor
+    ctx.shadowBlur  = 9
+    ctx.beginPath()
+    ctx.arc(dx, dy, 4.5, 0, Math.PI * 2)
+    ctx.fillStyle = dotColor
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+// ── Animation state ────────────────────────────────────────────────────────────
+const animState = { dots: [], spawnTimer: 0 }
+let lastTs = 0
+let dragging = false
+
+const canvas = document.getElementById('canvas')
+const ctx = canvas.getContext('2d')
+
+function tick(ts) {
+  const dt = Math.min((ts - lastTs) / 1000, 0.05)
+  lastTs = ts
+
+  const spawnRate = 0.05 * Math.pow(tempK / 400, 1.4)
+  animState.spawnTimer += Math.min(0.30, spawnRate) * 60 * dt
+
+  while (animState.spawnTimer >= 1) {
+    animState.spawnTimer -= 1
+    const useCatalyst = catalyst && Math.random() < 0.5
+    const EaEff       = useCatalyst ? Ea * 0.6 : Ea
+    const RTeff       = 0.13 * tempK
+    const successProb = Math.min(0.96, Math.exp(-EaEff / RTeff))
+    animState.dots.push({
+      xFrac:     0,
+      speed:     0.0022 + Math.random() * 0.0028,
+      phase:     'forward',
+      success:   Math.random() < successProb,
+      catalyzed: useCatalyst,
+    })
+  }
+
+  for (const dot of animState.dots) {
+    dot.xFrac += dot.speed * (dot.phase === 'reverse' ? -1 : 1)
+    if (dot.phase === 'forward' && !dot.success && dot.xFrac >= X_PEAK) {
+      dot.xFrac = X_PEAK
+      dot.phase = 'reverse'
+    }
+  }
+  animState.dots = animState.dots.filter(d => d.xFrac >= 0 && d.xFrac <= 1)
+  if (animState.dots.length > 32) animState.dots.shift()
+
+  const dpr  = window.devicePixelRatio || 1
+  const rect = canvas.getBoundingClientRect()
+  if (canvas.width !== Math.round(rect.width * dpr)) {
+    canvas.width  = Math.round(rect.width  * dpr)
+    canvas.height = Math.round(rect.height * dpr)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  drawEnergyProfile(ctx, canvas.width / dpr, canvas.height / dpr, dH, Ea, catalyst, animState.dots)
+  requestAnimationFrame(tick)
+}
+
+// ── Drag to adjust Ea ──────────────────────────────────────────────────────────
+function getPeakHit(e) {
+  const rect = canvas.getBoundingClientRect()
+  const dpr  = window.devicePixelRatio || 1
+  const W = canvas.width / dpr, H = canvas.height / dpr
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top
+  const geo = getCurveGeometry(W, H, dH, Ea)
+  return Math.hypot(mx - geo.toX(X_PEAK), my - geo.toY(geo.Epeak)) < 18
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (getPeakHit(e)) { dragging = true; e.preventDefault() }
+})
+canvas.addEventListener('mousemove', e => {
+  canvas.style.cursor = (getPeakHit(e) || dragging) ? 'ns-resize' : 'default'
+  if (!dragging) return
+  const rect = canvas.getBoundingClientRect()
+  const dpr  = window.devicePixelRatio || 1
+  const W = canvas.width / dpr, H = canvas.height / dpr
+  const my  = e.clientY - rect.top
+  const geo = getCurveGeometry(W, H, dH, Ea)
+  const { PAD, plotH, eRange, minE } = geo
+  const newEa = (PAD.t + plotH - my) / plotH * eRange + minE
+  const minEa = Math.max(10, dH)
+  Ea = Math.max(minEa, Math.min(350, Math.round(newEa / 5) * 5))
+  updateUI()
+})
+canvas.addEventListener('mouseup',    () => { dragging = false })
+canvas.addEventListener('mouseleave', () => { dragging = false })
+
+// ── UI update ──────────────────────────────────────────────────────────────────
+function setPct(slider, min, max, value) {
+  const pct = Math.round(Math.max(0, Math.min(100, (value - min) / (max - min) * 100)))
+  slider.style.setProperty('--pct', pct + '%')
+}
+
+function updateUI() {
+  const isEndo = dH > 0
+  const EaRev  = Ea - dH
+
+  // Sliders
+  const eaSlider   = document.getElementById('ea-slider')
+  const dhSlider   = document.getElementById('dh-slider')
+  const tempSlider = document.getElementById('temp-slider')
+  eaSlider.min   = Math.max(10, dH)
+  eaSlider.value = Ea
+  dhSlider.value = dH
+  tempSlider.value = tempK
+  setPct(eaSlider,   Math.max(10, dH), 350, Ea)
+  setPct(dhSlider,   -250, 200, dH)
+  setPct(tempSlider, 200, 900, tempK)
+
+  document.getElementById('ea-val').textContent   = `${Math.round(Ea)} kJ/mol`
+  document.getElementById('dh-val').textContent   = `${dH > 0 ? '+' : ''}${dH} kJ/mol`
+  document.getElementById('temp-val').textContent = `${tempK} K`
+
+  // Catalyst
+  const catBtn  = document.getElementById('cat-btn')
+  const catNote = document.getElementById('cat-note')
+  catBtn.textContent = catalyst ? '⚗ Catalyst ON' : '⚗ Add Catalyst'
+  catBtn.classList.toggle('on', catalyst)
+  catNote.classList.toggle('visible', catalyst)
+  if (catalyst) catNote.textContent = `Ea lowered → ${Math.round(Ea * 0.6)} kJ/mol \u00a0(−${Math.round(Ea * 0.4)} kJ/mol)`
+
+  // Thermo card
+  const thermoCard = document.getElementById('thermo-card')
+  thermoCard.className = 'thermo-card ' + (isEndo ? 'endo' : 'exo')
+  document.getElementById('thermo-icon').textContent  = isEndo ? '▲' : '▼'
+  document.getElementById('thermo-title').textContent = isEndo ? 'Endothermic' : 'Exothermic'
+  document.getElementById('thermo-sub').innerHTML     = `ΔH ${dH > 0 ? '> 0' : '< 0'} &nbsp;·&nbsp; ${isEndo ? 'absorbs' : 'releases'} energy`
+
+  // Read rows
+  const readEaFwd = document.getElementById('read-ea-fwd')
+  const readEaRev = document.getElementById('read-ea-rev')
+  const readDh    = document.getElementById('read-dh')
+  readEaFwd.textContent = `${Math.round(Ea)} kJ/mol`
+  readEaFwd.style.color = 'rgba(200,178,65,0.9)'
+  readEaRev.textContent = `${Math.round(EaRev)} kJ/mol`
+  readEaRev.style.color = 'rgba(175,128,210,0.9)'
+  readDh.textContent    = `${dH > 0 ? '+' : ''}${Math.round(dH)} kJ/mol`
+  readDh.style.color    = isEndo ? '#c07038' : '#4a88bc'
+
+  // Presets
+  document.querySelectorAll('.preset-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === presetIdx)
+  })
+
+  // Right panel type card
+  const typeCard = document.getElementById('type-card')
+  typeCard.className = 'type-card ' + (isEndo ? 'endo' : 'exo')
+  document.getElementById('type-label').textContent = isEndo ? 'Endothermic' : 'Exothermic'
+  const typeDhEl = document.getElementById('type-dh')
+  typeDhEl.textContent  = `ΔH = ${dH > 0 ? '+' : ''}${Math.round(dH)} kJ/mol`
+  typeDhEl.style.color  = isEndo ? '#c07038' : '#4a88bc'
+  document.getElementById('type-sub').textContent = isEndo
+    ? `Absorbs ${Math.abs(Math.round(dH))} kJ/mol from surroundings. Products are higher in energy than reactants.`
+    : `Releases ${Math.abs(Math.round(dH))} kJ/mol to surroundings. Products are lower in energy than reactants.`
+
+  // Right panel term cards
+  document.getElementById('term-ea-rev').textContent = Math.round(EaRev)
+  document.getElementById('term-catalyst').textContent = catalyst
+    ? `Lowers Ea to ${Math.round(Ea * 0.6)} kJ/mol (−${Math.round(Ea * 0.4)} kJ/mol). ΔH is unchanged. Green dots follow the lower pathway.`
+    : `Provides a lower-Ea pathway. Speeds up both directions equally — does not shift equilibrium or change ΔH.`
+}
+
+// ── Build preset buttons ───────────────────────────────────────────────────────
+const presetGrid = document.getElementById('preset-grid')
+PRESETS.forEach((p, i) => {
+  const btn = document.createElement('button')
+  btn.className = 'preset-btn'
+  btn.innerHTML = `<span class="preset-eq">${p.label}</span>
+    <span class="badge ${p.dH > 0 ? 'badge-endo' : 'badge-exo'}">${p.dH > 0 ? 'Endo' : 'Exo'}</span>`
+  btn.addEventListener('click', () => {
+    presetIdx = i; dH = p.dH; Ea = p.Ea
+    updateUI()
+  })
+  presetGrid.appendChild(btn)
+})
+
+// ── Slider events ──────────────────────────────────────────────────────────────
+document.getElementById('ea-slider').addEventListener('input', e => {
+  Ea = Math.max(Number(e.target.value), Math.max(10, dH))
+  updateUI()
+})
+document.getElementById('dh-slider').addEventListener('input', e => {
+  dH = Number(e.target.value)
+  Ea = Math.max(Ea, Math.max(10, dH))
+  updateUI()
+})
+document.getElementById('temp-slider').addEventListener('input', e => {
+  tempK = Number(e.target.value)
+  updateUI()
+})
+document.getElementById('cat-btn').addEventListener('click', () => {
+  catalyst = !catalyst
+  updateUI()
+})
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+updateUI()
+lastTs = performance.now()
+requestAnimationFrame(tick)
+</script>
+</body>
+</html>
